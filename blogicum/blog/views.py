@@ -13,7 +13,6 @@ from django.db.models import Count
 from django.utils import timezone
 
 
-
 def index(request):
     posts = Post.objects.filter(
         pub_date__lte=timezone.now(),
@@ -41,6 +40,7 @@ def post_detail(request, post_id):
         return HttpResponse(status=404)
 
     comments = post.comments.all()
+
     if request.method == 'POST':
         form = CommentForm(request.POST)
         if form.is_valid():
@@ -49,6 +49,7 @@ def post_detail(request, post_id):
             comment.author = request.user
             comment.save()
             return redirect('blog:post_detail', post_id=post_id)
+
     else:
         form = CommentForm()
 
@@ -58,9 +59,8 @@ def post_detail(request, post_id):
         'comments': comments,
         'form': form,
     }
+
     return render(request, 'blog/detail.html', context)
-
-
 
 
 def category_posts(request, slug):
@@ -98,25 +98,29 @@ class UserProfileView(DetailView):
 
     def get_object(self, queryset=None):
         return get_object_or_404(User, username=self.kwargs['username'])
-    
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        post_list = Post.objects.filter(author=self.object).annotate(comment_count=Count('comments')).order_by('-pub_date')
+        post_list = Post.objects.filter(
+            author=self.object
+            ).annotate(comment_count=Count('comments')).order_by('-pub_date')
         paginator = Paginator(post_list, 10)
-        
+
         page_number = self.request.GET.get('page')
         page_obj = paginator.get_page(page_number)
-        
+
         context['page_obj'] = page_obj
         return context
-    
+
 
 class EditProfileView(LoginRequiredMixin, UpdateView):
     model = User
     form_class = UserChangeForm
     template_name = 'blog/user.html'
+
     def get_success_url(self):
-        return reverse_lazy('blog:profile', kwargs={'username': self.request.user.username})
+        return reverse_lazy('blog:profile',
+                            kwargs={'username': self.request.user.username})
 
     def get_object(self, queryset=None):
         return self.request.user
@@ -133,7 +137,7 @@ def create_post(request):
             return redirect('blog:profile', username=request.user.username)
     else:
         form = PostForm()
-    
+
     return render(request, 'blog/create.html', {'form': form})
 
 
@@ -149,6 +153,7 @@ def edit_post(request, post_id):
         if form.is_valid():
             form.save()
             return redirect('blog:post_detail', post_id=post.id)
+
     else:
         form = PostForm(instance=post)
 
@@ -158,6 +163,7 @@ def edit_post(request, post_id):
 @login_required
 def add_comment(request, post_id):
     post = get_object_or_404(Post, id=post_id)
+
     if request.method == 'POST':
         form = CommentForm(request.POST)
         if form.is_valid():
@@ -166,9 +172,11 @@ def add_comment(request, post_id):
             comment.author = request.user
             comment.save()
             return redirect('blog:post_detail', post_id=post.id)
+
     else:
         form = CommentForm()
     return render(request, 'blog/comment.html', {'form': form, 'post': post})
+
 
 @login_required
 def edit_comment(request, post_id, comment_id):
@@ -181,14 +189,15 @@ def edit_comment(request, post_id, comment_id):
         form = CommentForm(request.POST, instance=comment)
         if form.is_valid():
             form.save()
-            return redirect('blog:post_detail', post_id=post_id)  # Перенаправление на страницу поста
+            return redirect('blog:post_detail', post_id=post_id)
+
     else:
         form = CommentForm(instance=comment)
 
     return render(request, 'blog/comment.html', {
         'form': form,
         'post': comment.post,
-        'comment': comment,  # Добавляем объект комментария в контекст
+        'comment': comment,
     })
 
 
@@ -198,17 +207,18 @@ def delete_post(request, post_id):
 
     if post.author != request.user:
         return redirect('blog:index')
-    
+
     if request.method == 'POST':
         post.delete()
         return redirect('blog:index')
 
-    return render(request, 'blog/detail.html', {'post': post, 'is_deleting': True})
+    return render(request, 'blog/detail.html',
+                  {'post': post, 'is_deleting': True})
+
 
 @login_required
 def delete_comment(request, post_id, comment_id):
     comment = get_object_or_404(Comment, id=comment_id, post_id=post_id)
-
 
     if comment.author != request.user:
         return redirect('blog:post_detail', post_id=post_id)
