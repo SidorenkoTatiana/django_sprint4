@@ -8,11 +8,13 @@ class StaticPageView(View):
     def get(self, request):
         return render(request, self.template_name)
 
+
 class RulesView(View):
     template_name = 'pages/rules.html'
 
     def get(self, request):
         return render(request, self.template_name)
+
 
 def csrf_failure(request, reason=""):
     return render(request, 'pages/403csrf.html', status=403)

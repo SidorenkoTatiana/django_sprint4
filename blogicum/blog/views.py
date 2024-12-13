@@ -103,7 +103,7 @@ class UserProfileView(DetailView):
         context = super().get_context_data(**kwargs)
         post_list = Post.objects.filter(
             author=self.object
-            ).annotate(comment_count=Count('comments')).order_by('-pub_date')
+        ).annotate(comment_count=Count('comments')).order_by('-pub_date')
         paginator = Paginator(post_list, 10)
 
         page_number = self.request.GET.get('page')
