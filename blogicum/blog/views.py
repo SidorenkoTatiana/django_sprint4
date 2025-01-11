@@ -13,24 +13,29 @@ from django.db.models import Count
 from django.utils import timezone
 
 
-def index(request):
-    posts = Post.objects.filter(
+def paginate_queryset(queryset, request, per_page=10):
+    paginator = Paginator(queryset, per_page)
+    page_number = request.GET.get('page')
+    return paginator.get_page(page_number)
+
+
+def get_published_posts():
+    return Post.objects.filter(
         pub_date__lte=timezone.now(),
         is_published=True,
         category__is_published=True
     ).annotate(comment_count=Count('comments')).order_by('-pub_date')
 
-    paginator = Paginator(posts, 10)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
 
+def index(request):
+    posts = get_published_posts()
+    page_obj = paginate_queryset(posts, request)
     context = {'page_obj': page_obj}
     return render(request, 'blog/index.html', context)
 
 
 def post_detail(request, post_id):
     post = get_object_or_404(Post, id=post_id)
-
     is_author = post.author == request.user
 
     if not post.is_published and not is_author:
@@ -65,16 +70,8 @@ def post_detail(request, post_id):
 
 def category_posts(request, slug):
     category = get_object_or_404(Category, slug=slug, is_published=True)
-    post_list = Post.objects.filter(
-        category=category,
-        is_published=True,
-        pub_date__lte=timezone.now()
-    ).annotate(comment_count=Count('comments')).order_by('-pub_date')
-
-    paginator = Paginator(post_list, 10)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-
+    post_list = get_published_posts().filter(category=category)
+    page_obj = paginate_queryset(post_list, request)
     context = {'category': category, 'page_obj': page_obj}
     return render(request, 'blog/category.html', context)
 
@@ -101,14 +98,11 @@ class UserProfileView(DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        post_list = Post.objects.filter(
-            author=self.object
-        ).annotate(comment_count=Count('comments')).order_by('-pub_date')
-        paginator = Paginator(post_list, 10)
 
-        page_number = self.request.GET.get('page')
-        page_obj = paginator.get_page(page_number)
+        post_list = Post.objects.filter(author=self.object).annotate(
+            comment_count=Count('comments')).order_by('-pub_date')
 
+        page_obj = paginate_queryset(post_list, self.request)
         context['page_obj'] = page_obj
         return context
 
